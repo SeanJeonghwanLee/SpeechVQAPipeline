@@ -1,0 +1,12 @@
+asr/sample
+*.flac
+beit3/__pycache__
+beit3/get_started
+beit3/tokenizer/wikiextractor
+beit3/tokenizer/kowiki-latest-pages-articles.xml.bz2
+beit3/tokenizer/merge_text.txt
+image
+models
+train_labels
+valid_labels
+tts/*
