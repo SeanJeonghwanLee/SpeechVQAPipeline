@@ -9,8 +9,9 @@ img_dup = {}
 que_id_dup = {}
 
 def anno_maker():
+    final_annotations = {}
     # merging trainset only
-    train_only_item = []
+    train_item = []
     train_path = f"./train_labels"
     categories = os.listdir(train_path)
     for category in tqdm(categories):
@@ -51,11 +52,9 @@ def anno_maker():
                 _temp_que_dict = que_set
                 _temp_que_dict["image"] = _img_dict[que_set["image_id"]]
                 _temp_que_dict["answer"] = _anno_dict[que_set["question_id"]]
-                train_only_item.append(_temp_que_dict)
-    train_only_dict = {"annotations" : [train_only_item]}
+                train_item.append(_temp_que_dict)
     
     # splitting into train/valid/test
-    train_item = []
     valid_item = []
     test_item = []
     
@@ -75,6 +74,7 @@ def anno_maker():
             annotations = anno_json["annotations"]
             images = img_json["images"]
             questions = que_json["questions"]
+            q_num = len(questions) #going to divide by 3; train:valid:test==1:1:1
             
             # image dictionary : to be used when merging them all together, image path extraction
             _img_dict = {}
@@ -95,12 +95,30 @@ def anno_maker():
                         que_id_dup[f'{path}-{anno_set["question_id"]}'] += 1
                 _anno_dict[anno_set["question_id"]] = anno_set["multiple_choice_answer"]               
             # question dictionary : the base dictionary, image path and answer will be merged here
+            q_count = 0
             for que_set in questions:
+                q_count += 1
                 _temp_que_dict = que_set
                 _temp_que_dict["image"] = _img_dict[que_set["image_id"]]
                 _temp_que_dict["answer"] = _anno_dict[que_set["question_id"]]
-                train_item.append(_temp_que_dict)
-    train_dict = {"annotations" : [train_item]}
+                
+                if q_count <= int(q_num/3):
+                    train_item.append(_temp_que_dict)
+                elif q_count <= int((2*q_num)/3):
+                    valid_item.append(_temp_que_dict)
+                else:
+                    test_item.append(_temp_que_dict)
+    # print(f"len(train_item):{len(train_item)}")
+    # print(f"len(valid_item):{len(valid_item)}")
+    # print(f"len(test_item):{len(test_item)}")
+    # print(f"len(train_item)+len(valid_item)+len(test_item):{len(train_item)+len(valid_item)+len(test_item)}")
+    final_annotations["train"] = {"annotations" : [train_item]}
+    final_annotations["valid"] = {"annotations" : [valid_item]}
+    final_annotations["test"] = {"annotations" : [test_item]}
+    
+    
+
+    
     # with open(f"{root_path}/train.json", 'w') as train_json:
     
     # splitting into train/val/test
