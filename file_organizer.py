@@ -5,16 +5,16 @@ from collections import defaultdict
 
 
 
-img_dup = {}
-que_id_dup = {}
 
-def anno_maker():
+def anno_maker(cls, data_path, tokenizer, annotation_data_path):
+    img_dup = {}
+    que_id_dup = {}
     final_annotations = {}
     # merging trainset only
     train_item = []
     train_path = f"./train_labels"
     categories = os.listdir(train_path)
-    for category in tqdm(categories):
+    for category in tqdm(categories, desc="TrainSet Only"):
         for lvl in ['상','중','하']: # very last dir
             path = f"{train_path}/{category}/{lvl}_train_{category}"
             with open(f"{path}/annotation.json","r") as anno_f:
@@ -50,9 +50,11 @@ def anno_maker():
             # question dictionary : the base dictionary, image path and answer will be merged here
             for que_set in questions:
                 _temp_que_dict = que_set
-                _temp_que_dict["image"] = _img_dict[que_set["image_id"]]
+                del _temp_que_dict["image_id"]
+                _temp_que_dict["image_path"] = _img_dict[que_set["image_id"]]
                 _temp_que_dict["answer"] = _anno_dict[que_set["question_id"]]
                 train_item.append(_temp_que_dict)
+    print("For Train Set is DONE.")
     
     # splitting into train/valid/test
     valid_item = []
@@ -60,7 +62,7 @@ def anno_maker():
     
     valid_path = f"./valid_labels"
     categories = os.listdir(valid_path)
-    for category in tqdm(categories):
+    for category in tqdm(categories, desc="ValidSet Split"):
         for lvl in ['상','중','하']: # very last dir
             path = f"{valid_path}/{category}/{lvl}_validate_{category}" ###start here again
             with open(f"{path}/annotation.json","r") as anno_f:
@@ -99,7 +101,8 @@ def anno_maker():
             for que_set in questions:
                 q_count += 1
                 _temp_que_dict = que_set
-                _temp_que_dict["image"] = _img_dict[que_set["image_id"]]
+                del _temp_que_dict["image_id"]
+                _temp_que_dict["image_path"] = _img_dict[que_set["image_id"]]
                 _temp_que_dict["answer"] = _anno_dict[que_set["question_id"]]
                 
                 if q_count <= int(q_num/3):
@@ -108,14 +111,43 @@ def anno_maker():
                     valid_item.append(_temp_que_dict)
                 else:
                     test_item.append(_temp_que_dict)
-    # print(f"len(train_item):{len(train_item)}")
-    # print(f"len(valid_item):{len(valid_item)}")
-    # print(f"len(test_item):{len(test_item)}")
-    # print(f"len(train_item)+len(valid_item)+len(test_item):{len(train_item)+len(valid_item)+len(test_item)}")
+    #Putting train/valid/test all together
     final_annotations["train"] = {"annotations" : [train_item]}
     final_annotations["valid"] = {"annotations" : [valid_item]}
     final_annotations["test"] = {"annotations" : [test_item]}
+    print("Split is DONE")
+    print(f"Train Set :{len(train_item)}")
+    print(f"Valid Set :{len(valid_item)}")
+    print(f"Test Set :{len(test_item)}")
+    print(f"Total :{len(train_item)+len(valid_item)+len(test_item)}")
     
+    # Question Tokenization
+    for split in tqdm(["train","valid","test"], desc="Question Tokenization"):
+        items = []
+        _items = final_annotations[split]["annotations"]
+        
+        for _item in _items:
+            que_text = _item["question"]
+            tokens = tokenizer.tokenize(que_text)
+            token_ids = tokenizer.convert_tokens_to_ids(tokens)
+            del _item["question"]
+            _item["text_segment"] = token_ids
+            items.append(_item)
+    
+        final_annotations[split]["annotations"] = items
+    print("Question Tokenization is DONE")
+    
+    #ans2label and label2ans
+    all_major_answers = list()
+    for split in tqdm(["train","valid","test"], desc="ans2label and lebel2ans"):
+        _items = final_annotations[split]["annotations"]
+        for _item in _items:
+            all_major_answers.append(_item["answer"])
+
+    all_major_answers = [normalize_word(word) for word in all_major_answers]
+    counter = {k: v for k, v in Counter(all_major_answers).items() if v >= 9}
+    ans2label = {k: i for i, k in enumerate(counter.keys())}
+    label2ans = list(counter.keys())
     
 
     

@@ -439,7 +439,7 @@ class CaptioningHandler(TaskHandler):
 def get_handler(args):
     if args.task == "nlvr2":
         return NLVR2Handler()
-    elif args.task == "vqav2":
+    elif args.task in ("vqav2", "vqacustom"):
         return VQAHandler()
     elif args.task in ("flickr30k", "coco_retrieval"):
         return RetrievalHandler()
@@ -514,7 +514,7 @@ def train_one_epoch(
             model.step()
 
             if (data_iter_step + 1) % update_freq == 0:
-                # model.zero_grad()
+                model.zero_grad()
                 # Deepspeed will call step() & model.zero_grad() automatic
                 if model_ema is not None:
                     model_ema.update(model)

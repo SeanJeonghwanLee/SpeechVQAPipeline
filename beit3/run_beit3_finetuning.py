@@ -36,7 +36,7 @@ def get_args():
     parser.add_argument('--model', default='beit_base_patch16_224', type=str, metavar='MODEL',
                         help='Name of model to train')
     parser.add_argument('--task', type=str, required=True, 
-                        choices=['nlvr2', 'vqav2', 'flickr30k', 'coco_retrieval', 'coco_captioning', 'nocaps', 'imagenet'], 
+                        choices=['nlvr2', 'vqav2', 'flickr30k', 'coco_retrieval', 'coco_captioning', 'nocaps', 'imagenet', 'vqacustom'], 
                         help='Name of task to fine-tuning')
 
     parser.add_argument('--input_size', default=224, type=int,
@@ -127,14 +127,14 @@ def get_args():
                         help='Perform evaluation only')
     parser.add_argument('--dist_eval', action='store_true', default=False,
                         help='Enabling distributed evaluation')
-    parser.add_argument('--num_workers', default=10, type=int)
+    parser.add_argument('--num_workers', default=0, type=int)
     parser.add_argument('--pin_mem', action='store_true',
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
     parser.add_argument('--no_pin_mem', action='store_false', dest='pin_mem')
     parser.set_defaults(pin_mem=True)
 
     # distributed training parameters
-    parser.add_argument('--world_size', default=1, type=int,
+    parser.add_argument('--world_size', default=4, type=int,
                         help='number of distributed processes')
     parser.add_argument('--local_rank', default=-1, type=int)
     parser.add_argument('--dist_on_itp', action='store_true')
@@ -325,6 +325,7 @@ def main(args, ds_init):
     else:
         if args.distributed:
             model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu], find_unused_parameters=True)
+            model._set_static_graph()
             model_without_ddp = model.module
 
         optimizer = create_optimizer(
@@ -361,9 +362,13 @@ def main(args, ds_init):
             ext_test_stats, task_key = evaluate(data_loader_test, model, device, task_handler)
             print(f"Accuracy of the network on the {len(data_loader_test.dataset)} test images: {ext_test_stats[task_key]:.3f}%")
             exit(0)
-        elif args.task == "vqav2":
+        elif args.task == "vqav2" :
             result, _ = evaluate(data_loader_test, model, device, task_handler)
             utils.dump_predictions(args, result, "vqav2_test")
+            exit(0)
+        elif args.task == "vqacustom":
+            result, _ = evaluate(data_loader_test, model, device, task_handler)
+            utils.dump_predictions(args, result, "vqacustom_test")
             exit(0)
         elif args.task in ["coco_captioning", "nocaps"]:
             predictions, _ = evaluate(data_loader_test, model, device, task_handler)

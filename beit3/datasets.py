@@ -6,10 +6,12 @@
 # --------------------------------------------------------'
 
 import os
+import os.path
 import json
 import random
 import torch
 import glob
+from tqdm import tqdm
 from collections import defaultdict, Counter
 from torchvision import transforms
 from torchvision.datasets.folder import default_loader
@@ -56,7 +58,7 @@ class BaseDataset(torch.utils.data.Dataset):
         raise NotImplementedError()
 
     def _get_image(self, image_path: str):
-        image_path = os.path.join(self.data_path, image_path)
+        image_path = os.path.join(self.image_root_path, image_path)
         image = self.loader(image_path)
         return self.transform(image)
 
@@ -567,6 +569,7 @@ class VQAv2Dataset(BaseDataset):
 class CustomDataset(BaseDataset):
     def __init__(self, data_path, **kwargs):
         super().__init__(data_path=data_path, **kwargs)
+        self.image_root_path = f"{self.data_path}images"
         ans2label_file = os.path.join(data_path, "answer2label.txt")
         ans2label = {}
         label2ans = []
@@ -586,11 +589,11 @@ class CustomDataset(BaseDataset):
     @staticmethod
     def get_index_files(split, task=None):
         if split == "train":
-            return ("vqa.train.jsonl", "vqa.trainable_val.jsonl")
+            return ("vqa.train.json", )
         elif split == "val":
-            return ("vqa.rest_val.jsonl", )
+            return ("vqa.val.json", )
         elif split == "test":
-            return ("vqa.test.jsonl", )      
+            return ("vqa.test.json", )      
         else:
             raise RuntimeError("split %s is not found!" % split)
 
@@ -621,158 +624,177 @@ class CustomDataset(BaseDataset):
             return 1.0
 
     @classmethod
-    def make_dataset_index(cls, data_path, tokenizer, annotation_data_path):
-        with open(os.path.join(annotation_data_path, "v2_OpenEnded_mscoco_train2014_questions.json"), "r") as fp:
-            questions_train2014 = json.load(fp)["questions"]
-        with open(os.path.join(annotation_data_path, "v2_OpenEnded_mscoco_val2014_questions.json"), "r") as fp:
-            questions_val2014 = json.load(fp)["questions"]
-        with open(os.path.join(annotation_data_path, "v2_OpenEnded_mscoco_test2015_questions.json"), "r") as fp:
-            questions_test2015 = json.load(fp)["questions"]
-        with open(os.path.join(annotation_data_path, "v2_OpenEnded_mscoco_test-dev2015_questions.json"), "r") as fp:
-            questions_test_dev2015 = json.load(fp)["questions"]
-
-        with open(os.path.join(annotation_data_path, "v2_mscoco_train2014_annotations.json"), "r") as fp:
-            annotations_train2014 = json.load(fp)["annotations"]
-        with open(os.path.join(annotation_data_path, "v2_mscoco_val2014_annotations.json"), "r") as fp:
-            annotations_val2014 = json.load(fp)["annotations"]
-
-        annotations = dict()
-
-        for split, questions in zip(
-            ["train", "val", "test", "test-dev"],
-            [questions_train2014, questions_val2014, questions_test2015, questions_test_dev2015],
-        ):
-            _annot = defaultdict(dict)
-            for q in questions:
-                question_text = q["question"]
-                tokens = tokenizer.tokenize(question_text)
-                token_ids = tokenizer.convert_tokens_to_ids(tokens)
-
-                assert q["question_id"] not in _annot[q["image_id"]]
-                _annot[q["image_id"]][q["question_id"]] = {
-                    "question": question_text, 
-                    "token_ids": token_ids, 
-                }
-
-            annotations[split] = _annot
-
+    def make_dataset_index(cls, data_path, tokenizer, label_path, non_existing_file):
+        with open(non_existing_file, 'r') as f:
+            non_existing_list = f.readlines()
+        print(f"###non existing file list loaded : {len(non_existing_list)} in total###")
+        print(f"###{non_existing_list[:5]} ... ###")
+        img_dup = {}
+        que_id_dup = {}
+        final_annotations = {}
+        # merging trainset only
+        train_item = []
+        train_path = f"{label_path}/train_labels"
+        categories = os.listdir(train_path)
+        for category in tqdm(categories, desc="TrainSet Only"):
+            for lvl in ['상','중','하']: # very last dir
+                path = f"{train_path}/{category}/{lvl}_train_{category}"
+                with open(f"{path}/annotation.json","r") as anno_f:
+                    anno_json = json.load(anno_f)
+                with open(f"{path}/images.json","r") as img_f:
+                    img_json = json.load(img_f)
+                with open(f"{path}/question.json","r") as que_f:
+                    que_json = json.load(que_f)
+                
+                # required data
+                annotations = anno_json["annotations"]
+                images = img_json["images"]
+                questions = que_json["questions"]
+                
+                # image dictionary : to be used when merging them all together, image path extraction
+                _img_dict = {}
+                for img_set in images:
+                    if img_set["image_id"] in _img_dict:
+                        if img_set["image_id"] not in img_dup:
+                            img_dup[img_set["image_id"]] = 1
+                        elif img_set["image_id"] in img_dup:
+                            img_dup[img_set["image_id"]] += 1
+                    _img_dict[img_set["image_id"]] = img_set["image"]
+                # annotation dictionary : to be used when merging them all together, answer extraction
+                _anno_dict = {}
+                for anno_set in annotations:
+                    if anno_set["question_id"] in _anno_dict:
+                        if anno_set["question_id"] not in que_id_dup:
+                            que_id_dup[f'{path}-{anno_set["question_id"]}'] = 1
+                        elif anno_set["question_id"] in que_id_dup:
+                            que_id_dup[f'{path}-{anno_set["question_id"]}'] += 1
+                    _anno_dict[anno_set["question_id"]] = anno_set["multiple_choice_answer"]               
+                # question dictionary : the base dictionary, image path and answer will be merged here
+                for que_set in questions:
+                    _temp_que_dict = que_set
+                    _temp_que_dict["image_path"] = _img_dict[que_set["image_id"]]
+                    _temp_que_dict["answer"] = _anno_dict[que_set["question_id"]]
+                    train_item.append(_temp_que_dict)
+        print("For Train Set is DONE.")
+        
+        # splitting into train/valid/test
+        valid_item = []
+        test_item = []
+        
+        valid_path = f"{label_path}/valid_labels"
+        categories = os.listdir(valid_path)
+        for category in tqdm(categories, desc="ValidSet Split"):
+            for lvl in ['상','중','하']: # very last dir
+                path = f"{valid_path}/{category}/{lvl}_validate_{category}" ###start here again
+                with open(f"{path}/annotation.json","r") as anno_f:
+                    anno_json = json.load(anno_f)
+                with open(f"{path}/images.json","r") as img_f:
+                    img_json = json.load(img_f)
+                with open(f"{path}/question.json","r") as que_f:
+                    que_json = json.load(que_f)
+                
+                # required data
+                annotations = anno_json["annotations"]
+                images = img_json["images"]
+                questions = que_json["questions"]
+                q_num = len(questions) #going to divide by 3; train:valid:test==1:1:1
+                
+                # image dictionary : to be used when merging them all together, image path extraction
+                _img_dict = {}
+                for img_set in images:
+                    if img_set["image_id"] in _img_dict:
+                        if img_set["image_id"] not in img_dup:
+                            img_dup[img_set["image_id"]] = 1
+                        elif img_set["image_id"] in img_dup:
+                            img_dup[img_set["image_id"]] += 1
+                    _img_dict[img_set["image_id"]] = img_set["image"]
+                # annotation dictionary : to be used when merging them all together, answer extraction
+                _anno_dict = {}
+                for anno_set in annotations:
+                    if anno_set["question_id"] in _anno_dict:
+                        if anno_set["question_id"] not in que_id_dup:
+                            que_id_dup[f'{path}-{anno_set["question_id"]}'] = 1
+                        elif anno_set["question_id"] in que_id_dup:
+                            que_id_dup[f'{path}-{anno_set["question_id"]}'] += 1
+                    _anno_dict[anno_set["question_id"]] = anno_set["multiple_choice_answer"]               
+                # question dictionary : the base dictionary, image path and answer will be merged here
+                q_count = 0
+                for que_set in questions:
+                    q_count += 1
+                    _temp_que_dict = que_set
+                    _temp_que_dict["image_path"] = _img_dict[que_set["image_id"]]
+                    _temp_que_dict["answer"] = _anno_dict[que_set["question_id"]]
+                    
+                    if q_count <= int(q_num/3):
+                        train_item.append(_temp_que_dict)
+                    elif q_count <= int((2*q_num)/3):
+                        valid_item.append(_temp_que_dict)
+                    else:
+                        test_item.append(_temp_que_dict)
+        #Putting train/valid/test all together
+        final_annotations["train"] = {"annotations" : train_item}
+        final_annotations["val"] = {"annotations" : valid_item}
+        final_annotations["test"] = {"annotations" : test_item}
+        print("Split is DONE")
+        print(f"Train Set :{len(train_item)}")
+        print(f"Valid Set :{len(valid_item)}")
+        print(f"Test Set :{len(test_item)}")
+        print(f"Total :{len(train_item)+len(valid_item)+len(test_item)}")
+        
+        #ans2label and label2ans
         all_major_answers = list()
+        for split in tqdm(["train","val","test"], desc="ans2label and label2ans"):
+            _items = final_annotations[split]["annotations"]
+            for _item in _items:
+                all_major_answers.append(_item["answer"])
 
-        for split, annots in zip(
-            ["train", "val"], [annotations_train2014, annotations_val2014],
-        ):
-            # _annot = annotations[split]
-            for q in annots:
-                all_major_answers.append(q["multiple_choice_answer"])
-
-        all_major_answers = [normalize_word(word) for word in all_major_answers]
-        counter = {k: v for k, v in Counter(all_major_answers).items() if v >= 9}
+        counter = {k: v for k, v in Counter(all_major_answers).items() if v >= 5}
         ans2label = {k: i for i, k in enumerate(counter.keys())}
         label2ans = list(counter.keys())
 
-        for split, annots in zip(
-            ["train", "val"], [annotations_train2014, annotations_val2014],
-        ):
-            _annot = annotations[split]
-            for q in annots:
-                answers = q["answers"]
-                answer_count = {}
-                for answer in answers:
-                    answer_ = answer["answer"]
-                    answer_count[answer_] = answer_count.get(answer_, 0) + 1
-
-                labels = []
-                scores = []
-                for answer in answer_count:
-                    if answer not in ans2label:
-                        continue
-                    labels.append(ans2label[answer])
-                    score = cls.get_score(answer_count[answer])
-                    scores.append(score)
-
-                assert "labels" not in _annot[q["image_id"]][q["question_id"]]
-                assert "question" in _annot[q["image_id"]][q["question_id"]]
-                _annot[q["image_id"]][q["question_id"]]["labels"] = labels
-                _annot[q["image_id"]][q["question_id"]]["scores"] = scores
-
-        for split in ["train", "val"]:
-            filtered_annot = dict()
-            for ik, iv in annotations[split].items():
-                new_q = dict()
-                for qk, qv in iv.items():
-                    if len(qv["labels"]) != 0:
-                        new_q[qk] = qv
-                if len(new_q) != 0:
-                    filtered_annot[ik] = new_q
-            annotations[split] = filtered_annot
-
-        split2items = {}
-        for split in ["train", "val", "test", "test-dev"]:
-            annot = annotations[split]
-            split_name = {
-                "train": "train2014",
-                "val": "val2014",
-                "test": "test2015",
-                "test-dev": "test2015",
-            }[split]
-            paths = list(glob.glob(f"{data_path}/{split_name}/*.jpg"))
-            random.shuffle(paths)
-            annot_paths = [path for path in paths \
-                if int(path.split("/")[-1].split("_")[-1][:-4]) in annot]
-
-            if len(paths) == len(annot_paths):
-                print("all images have caption annotations")
-            else:
-                print("not all images have caption annotations")
-            print(len(paths), len(annot_paths), len(annot))
-
+        # Question Tokenization
+        
+        for split in tqdm(["train","val","test"], desc="Final Process", position=0):
+            answer_count = {}
             items = []
-            for path in annot_paths:
-                iid = int(path.split("/")[-1].split("_")[-1][:-4])
-                _annot = annotations[split][iid]
-                for qid in _annot:
-                    q = _annot[qid]
-                    if split in ["train", "val"]:
-                        labels = q["labels"]
-                        scores = q["scores"]
-                    else:
-                        labels, scores = [], []
-
+            _items = final_annotations[split]["annotations"]
+            
+            for _item in tqdm(_items, desc="items", position=1, leave=False):
+                if _item["image_path"] in non_existing_list:
+                    continue
+                que_text = _item["question"]
+                tokens = tokenizer.tokenize(que_text)
+                token_ids = tokenizer.convert_tokens_to_ids(tokens)
+                
+                if split in ["train","val"]:
+                    answer = _item["answer"]
+                    answer_count[answer] = answer_count.get(answer, 0) + 1
+                    if answer not in ans2label:
+                        # print(answer)
+                        # print("it's not in ans2label")
+                        continue
                     items.append({
-                        "image_path": os.path.join(split_name, path.split('/')[-1]), 
-                        "text_segment": q["token_ids"], 
-                        "labels": labels, 
-                        "scores": scores, 
-                        "qid": qid, 
+                        "image_path": _item["image_path"], 
+                        "text_segment": token_ids, 
+                        "labels": [ans2label[answer]], 
+                        "scores": [cls.get_score(answer_count[answer])], 
+                        "qid": _item["question_id"],
                     })
-            split2items[split] = items
-
-            _write_data_into_jsonl(items=items, jsonl_file=os.path.join(data_path, "vqa.%s.jsonl" % split))
-
-        # Following ViLT, we use 1000 images of the original val set as the final val set        
-        val_image2items = defaultdict(list)
-        for item in split2items["val"]:
-            val_image2items[item["image_path"]].append(item)
+                elif split == "test":
+                    items.append({
+                        "image_path": _item["image_path"], 
+                        "text_segment": token_ids, 
+                        "labels": '', 
+                        "scores": '', 
+                        "qid": _item["question_id"],
+                    })
+                    
+            _write_data_into_jsonl(items=items, jsonl_file=os.path.join(data_path, "vqa.%s.json" % split))
         
-        print("Contains %d image and %d pairs for val set!" % (len(val_image2items), len(split2items["val"])))
-
-        val_images = list(val_image2items.keys())
-        random.shuffle(val_images)
-        trainable_val = []
-        rest_val = []
-        for i, image_id in enumerate(val_images):
-            if i < 1000:
-                rest_val += val_image2items[image_id]
-            else:
-                trainable_val += val_image2items[image_id]
-        
-        _write_data_into_jsonl(items=trainable_val, jsonl_file=os.path.join(data_path, "vqa.trainable_val.jsonl"))
-        _write_data_into_jsonl(items=rest_val, jsonl_file=os.path.join(data_path, "vqa.rest_val.jsonl"))
-
         with open(os.path.join(data_path, "answer2label.txt"), mode="w", encoding="utf-8") as writer:
             for ans in ans2label:
                 to_json = {
-                    "answer": ans, 
+                    "answer": ans,
                     "label": ans2label[ans]
                 }
                 writer.write("%s\n" % json.dumps(to_json))
@@ -915,6 +937,7 @@ class CaptioningDataset(BaseDataset):
 task2dataset = {
     "nlvr2": NLVR2Dataset, 
     "vqav2": VQAv2Dataset, 
+    "vqacustom": CustomDataset,
     "flickr30k": RetrievalDataset, 
     "coco_retrieval": RetrievalDataset,  
     "coco_captioning": CaptioningDataset,

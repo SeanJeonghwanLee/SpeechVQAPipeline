@@ -5,8 +5,13 @@ beit3/get_started
 beit3/tokenizer/wikiextractor
 beit3/tokenizer/kowiki-latest-pages-articles.xml.bz2
 beit3/tokenizer/merge_text.txt
-image
+images
 models
 train_labels
 valid_labels
 tts/*
+*.json
+*.txt
+beit3/log
+beit3/*.out
+__pycache__/

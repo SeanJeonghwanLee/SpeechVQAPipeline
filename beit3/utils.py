@@ -288,6 +288,7 @@ def _get_world_size_env():
 # The implementation code is modified from DeiT (https://github.com/facebookresearch/deit.git)
 def init_distributed_mode(args):
     if args.dist_on_itp:
+        print(f"#########DISTRIBUTION MODE")
         args.rank = _get_rank_env()
         args.world_size = _get_world_size_env()  # int(os.environ['OMPI_COMM_WORLD_SIZE'])
         args.gpu = _get_local_rank_env()
@@ -314,13 +315,17 @@ def init_distributed_mode(args):
     args.dist_backend = 'nccl'
     print('| distributed init (rank {}): {}, gpu {}'.format(
         args.rank, args.dist_url, args.gpu), flush=True)
+    print(f"########args.dist_url:{args.dist_url}")
     torch.distributed.init_process_group(
         backend=args.dist_backend, init_method=args.dist_url,
         world_size=args.world_size, rank=args.rank,
         timeout=datetime.timedelta(0, 7200)
     )
+    print(f"########ALMOSTDONE")
     torch.distributed.barrier()
+    print(f"########barrier passed")
     setup_for_distributed(args.rank == 0)
+    print(f"########setup done")
 
 
 def load_state_dict(model, state_dict, prefix='', ignore_missing="relative_position_index"):
@@ -573,7 +578,7 @@ def load_model_and_may_interpolate(ckpt_path, model, model_key, model_prefix):
                     pos_tokens = pos_embed_checkpoint[:, num_extra_tokens:]
                 pos_tokens = pos_tokens.reshape(-1, orig_size, orig_size, embedding_size).permute(0, 3, 1, 2)
                 pos_tokens = torch.nn.functional.interpolate(
-                    pos_tokens, size=(new_size, new_size), mode='bicubic', align_corners=False)
+                    pos_tokens.to(torch.float32), size=(new_size, new_size), mode='bicubic', align_corners=False)
                 pos_tokens = pos_tokens.permute(0, 2, 3, 1).flatten(1, 2)
                 new_pos_embed = torch.cat((extra_tokens, pos_tokens), dim=1)
                 if torchscale_model:

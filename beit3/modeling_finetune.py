@@ -384,3 +384,10 @@ def beit3_large_patch16_384_retrieval(pretrained=False, **kwargs):
     args = _get_large_config(img_size=384, **kwargs)
     model = BEiT3ForRetrieval(args, **kwargs)
     return model
+
+@register_model
+def beit3_base_patch16_384_vqacustom(pretrained=False, **kwargs):
+    args = _get_base_config(img_size=384, **kwargs)
+    args.normalize_output = False
+    model = BEiT3ForVisualQuestionAnswering(args, num_classes=15324, **kwargs)
+    return model
