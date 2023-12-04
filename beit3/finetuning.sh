@@ -13,7 +13,7 @@ python -m torch.distributed.launch --nproc_per_node=4 run_beit3_finetuning.py \
         --warmup_epochs 1 \
         --drop_path 0.15 \
         --sentencepiece_model /home/seanlee/class/SpeechVQAPipeline/models/smp.model \
-        --finetune /home/seanlee/class/SpeechVQAPipeline/models/beit3_large_patch16_224.zip \
+        --finetune /home/seanlee/class/SpeechVQAPipeline/models/beit3_base_patch16_224.zip \
         --data_path /home/seanlee/class/SpeechVQAPipeline/ \
         --output_dir /home/seanlee/class/SpeechVQAPipeline/beit3/finetune_checkpoint \
         --log_dir /home/seanlee/class/SpeechVQAPipeline/beit3/log \

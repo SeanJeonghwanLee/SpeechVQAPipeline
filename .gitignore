@@ -15,3 +15,4 @@ tts/*
 beit3/log
 beit3/*.out
 __pycache__/
+beit3/finetune_checkpoint
