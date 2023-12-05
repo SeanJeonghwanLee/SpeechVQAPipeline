@@ -6,7 +6,8 @@ beit3/tokenizer/wikiextractor
 beit3/tokenizer/kowiki-latest-pages-articles.xml.bz2
 beit3/tokenizer/merge_text.txt
 images
-models
+models/beit3_base_patch16_224.zip
+models/beit3_large_patch16_224.zip
 train_labels
 valid_labels
 tts/*
