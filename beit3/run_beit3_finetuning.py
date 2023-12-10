@@ -356,7 +356,7 @@ def main(args, ds_init):
                 prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
                 label_smoothing=args.label_smoothing, num_classes=args.nb_classes)
 
-    if args.eval:
+    if args.eval or args.dist_eval:
         data_loader_test = create_downstream_dataset(args, is_eval=True)
         if args.task in ["nlvr2", "flickr30k", "coco_retrieval", "imagenet"]:
             ext_test_stats, task_key = evaluate(data_loader_test, model, device, task_handler)

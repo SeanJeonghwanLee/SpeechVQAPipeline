@@ -605,7 +605,7 @@ class CustomDataset(BaseDataset):
                 labels[l] = s
             data["labels"] = torch.FloatTensor(labels)
         else:
-            data["qid"] = self.items[index]["qid"]
+            data["qid"] = int(self.items[index]["qid"])
         return data
 
     @staticmethod

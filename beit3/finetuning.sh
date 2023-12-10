@@ -1,9 +1,9 @@
-export CUDA_VISIBLE_DEVICES=0,1,2,3
-python -m torch.distributed.launch --nproc_per_node=4 run_beit3_finetuning.py \
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5
+python -m torch.distributed.launch --nproc_per_node=6 run_beit3_finetuning.py \
         --model beit3_base_patch16_384 \
         --input_size 384 \
         --task vqacustom \
-        --batch_size 128 \
+        --batch_size 100 \
         --num_workers 4 \
         --layer_decay 1.0 \
         --lr 2e-5 \
@@ -23,3 +23,4 @@ python -m torch.distributed.launch --nproc_per_node=4 run_beit3_finetuning.py \
         --task_head_lr_weight 20 \
         --opt_betas 0.9 0.98 \
         --checkpoint_activations \
+        --resume /home/seanlee/class/SpeechVQAPipeline/beit3/finetune_checkpoint/checkpoint-4.pth
