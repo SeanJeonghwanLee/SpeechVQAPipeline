@@ -437,6 +437,9 @@ class CaptioningHandler(TaskHandler):
 
 
 def get_handler(args):
+    if type(args) == "str":
+        return VQAHandler()
+        
     if args.task == "nlvr2":
         return NLVR2Handler()
     elif args.task in ("vqav2", "vqacustom"):

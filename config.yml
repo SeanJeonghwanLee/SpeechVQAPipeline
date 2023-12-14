@@ -1,3 +1,20 @@
-asr_path : jiwon65/whisper-small_korean-zeroth
-beit3_path: path
-tts_path: path
+asr :
+  demo : True
+  model : jiwon65/whisper-small_korean-zeroth
+beit3 :
+  demo : True
+  model : beit3_base_patch16_384
+  model_path : ./finetune_checkpoint_large_indomain/checkpoint-best.pth
+  sentencepiece_model : ../models/smp.model
+  device : cuda
+  dist_backend : nccl
+  dist_url : env://
+  drop_path : 0.15
+  vocab_size : 64010
+  checkpoint_activations : True
+  model_key : model|module
+  model_prefix : ''
+  image_size : 224
+tts:
+  demo : True  
+  tts_path: path

@@ -6,32 +6,37 @@ import gradio as gr
 
 
 class SVQA():
-    def __init__(self, config, demo=True):
+    def __init__(self, config:dict, demo:bool=True):
         self.config = config
-        asr_path = config["asr_path"]
-        beit3_path = config["beit3_path"]
-        tts_path = config["tts_path"]
+
+        asr_config = config["asr"]
+        beit3_config = config["beit3"]
+        tts_config = config["tts"]
+        if not demo:
+            asr_config["demo"] = False
+            beit3_config["demo"] = False
+            tts_config["demo"] = False
         
         # Model Initialization
-        self.asr_pipe = ASRecognizer(asr_path, demo)
-        self.beit3_pipe = beit3_CLASS(beit3_path, demo) 
-        self.tts_pipe = tts_CLASS(tts_path, demo)
+        self.asr_pipe = ASRecognizer(asr_config)
+        self.beit3_pipe = beit3_CLASS(beit3_config) 
+        self.tts_pipe = tts_CLASS(tts_config)
     
     def speech_recognition(self, sound):
         output = self.asr_pipe.predict(sound)
         return output
     
-    def vq_answering(self, text):
-        output = self.beit3_pipe.predict(text)
+    def vq_answering(self, text, image):
+        output = self.beit3_pipe.predict(text, image)
         return output
     
     def ttspeech(self, text):
         output = self.tts_pipe.predict(text)
         return output
    
-    def run(self, sound):
+    def run(self, sound, image):
         output = self.speech_recognition(sound)
-        output = self.vq_answering(output)
+        output = self.vq_answering(output, image)
         output = self.ttspeech(output)
         return output
     
@@ -43,7 +48,8 @@ if __name__ == "__main__":
     vqa_engine = SVQA(config=config)
 
     demo = gr.Interface(vqa_engine.run,
-                        gr.Audio(sources=["microphone"]),
+                        input = [gr.Audio(sources=["microphone"]),
+                                 gr.Image(type="pil")],
                         output="audio")
     demo.launch()
         

@@ -4,10 +4,11 @@ import time
 
 
 class ASRecognizer():
-    def __init__(self, asr_path:str, demo:bool=False):
-        self.demo = demo
+    def __init__(self, asr_config:dict):
+        self.config = asr_config
+        self.demo = self.config["demo"]
         # load model and processor
-        self.asr_path = asr_path
+        self.asr_path = self.config['model']
         self.processor = WhisperProcessor.from_pretrained(self.asr_path)
         self.model = WhisperForConditionalGeneration.from_pretrained(self.asr_path)
         self.forced_decoder_ids = self.processor.get_decoder_prompt_ids(language="korean", task="transcribe")
@@ -24,3 +25,7 @@ class ASRecognizer():
         result = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)
         
         return result
+
+
+if __name__ == "__main__":
+    pass # pipe test required
