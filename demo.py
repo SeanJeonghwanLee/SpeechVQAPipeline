@@ -36,7 +36,11 @@ class SVQA():
    
     def run(self, sound, image):
         output = self.speech_recognition(sound)
+        print("### Speech Recognized ###")
+        print(f"### question : {output} ###")
         output = self.vq_answering(output, image)
+        print("### VQA Answered ###")
+        print(f"### answer : {output} ###")
         # output = self.ttspeech(output)
         return output
     
@@ -51,5 +55,5 @@ if __name__ == "__main__":
                         inputs = [gr.Audio(sources=["microphone"]),
                                  gr.Image(type="pil")],
                         outputs = "text")
-    demo.launch(share=False)
+    demo.launch(share=True)
         

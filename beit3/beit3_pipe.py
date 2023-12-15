@@ -75,6 +75,8 @@ class VQAnswering():
 
 
     def _tokenize(self, text):
+        if isinstance(text, list):
+            text = ' '.join(text)
         tokens = self.tokenizer.tokenize(text)
         token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
         
