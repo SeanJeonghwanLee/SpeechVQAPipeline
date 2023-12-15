@@ -1,0 +1,1 @@
+from .beit3_pipe import VQAnswering

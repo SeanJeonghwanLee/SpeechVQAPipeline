@@ -1,1 +1,1 @@
-from asr_pipe import ASRecognizer
+from .asr_pipe import ASRecognizer

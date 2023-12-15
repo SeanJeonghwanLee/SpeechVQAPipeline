@@ -12,12 +12,12 @@ from timm.data.constants import IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
 from timm.models import create_model
 from transformers import XLMRobertaTokenizer
 
-import utils
+from . import utils
+from . import modeling_finetune
 
 
 
-
-class VQAFactory():
+class VQAnswering():
     def __init__(self, beit3_config:dict):
         self.config = beit3_config
         self.demo = self.config["demo"]
@@ -27,21 +27,21 @@ class VQAFactory():
         cudnn.benchmark = True
         
         #tokenizer initialize
-        self.tokenizer = XLMRobertaTokenizer(self.config["sentencepice_model"])
+        self.tokenizer = XLMRobertaTokenizer(self.config["sentencepiece_model"])
         self.bos_token_id = self.tokenizer.bos_token_id
         self.eos_token_id = self.tokenizer.eos_token_id
         self.pad_token_id = self.tokenizer.pad_token_id
-        self.label2ans = self._label2ans()
+        self.label2ans = self._label2ans(self.config["ans2label"])
         
         
-        self.input_size = self.config["input_size"]
+        self.input_size = self.config["image_size"]
         self.transform = self._build_transform()
         
         
         #model initialize
-        model_config = self.config["model"]
+        _model = self.config["model"]
         self.model = create_model(
-            model_config,
+            _model,
             pretrained=False,
             drop_path_rate=self.config["drop_path"],
             vocab_size=self.config["vocab_size"],
@@ -76,26 +76,33 @@ class VQAFactory():
 
     def _tokenize(self, text):
         tokens = self.tokenizer.tokenize(text)
+        token_ids = self.tokenizer.convert_tokens_to_ids(tokens)
+        
         max_len = 64
-        if len(tokens) > max_len - 2:
-            tokens = tokens[:max_len - 2]
+        if len(token_ids) > max_len - 2:
+            token_ids = token_ids[:max_len - 2]
 
-        tokens = [self.bos_token_id] + tokens[:] + [self.eos_token_id]
-        num_tokens = len(tokens)
+        token_ids = [self.bos_token_id] + token_ids[:] + [self.eos_token_id]
+        num_tokens = len(token_ids)
         padding_mask = [0] * num_tokens + [1] * (max_len - num_tokens)
-        language_tokens = tokens + [self.pad_token_id] * (max_len - num_tokens)
+        language_tokens = token_ids + [self.pad_token_id] * (max_len - num_tokens)
 
+        language_tokens = torch.Tensor(language_tokens).type('torch.LongTensor').reshape(1,-1)
+        padding_mask = torch.Tensor(padding_mask).type('torch.LongTensor').reshape(1,-1)
         return language_tokens, padding_mask, num_tokens
     
     
     def _transform(self, image):
-        return self.transform(image)
+        image = self.transform(image)
+        C, H, W = image.shape
+        image = image.reshape(1, C, H, W)
+        return image
 
     def _fix_seed(self, seed:int=666666):
         torch.manual_seed(seed)
         np.random.seed(seed)
 
-    def _lable2ans(self, ans2label):
+    def _label2ans(self, ans2label):
         label2ans = []
         with open(ans2label, mode="r", encoding="utf-8") as reader:
             for line in reader:
@@ -105,14 +112,14 @@ class VQAFactory():
         return label2ans
         
     def init_distributed_mode(self):
-
         if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:
             rank = int(os.environ["RANK"])
             world_size = int(os.environ['WORLD_SIZE'])
             self.gpu = int(os.environ['LOCAL_RANK'])
-        # elif 'SLURM_PROCID' in os.environ:
-        #     args.rank = int(os.environ['SLURM_PROCID'])
-        #     args.gpu = args.rank % torch.cuda.device_count()
+        elif 'SLURM_PROCID' in os.environ:
+            rank = int(os.environ['SLURM_PROCID'])
+            world_size = int(os.environ['WORLD_SIZE'])
+            self.gpu = rank % torch.cuda.device_count()
 
         # args.distributed = True
         dist_backend = self.config["dist_backend"]
@@ -137,5 +144,30 @@ class VQAFactory():
 
 
 
-if __name__ == '__main__':
-    pass # pipe test required
+if __name__ == "__main__":
+    from torchvision.datasets.folder import default_loader
+    
+    import yaml
+    from PIL import Image
+    import time
+
+
+    with open('../config.yml', 'r') as f:
+        config = yaml.full_load(f)
+    beit3_config = config["beit3"]
+    beit3_config["demo"] = False
+    print("###config loaded###")
+
+    vqa = VQAnswering(beit3_config)
+    print("###Model loaded###")
+
+
+    # sample
+    image = default_loader("./sample/three_puppies.jpg")
+    # text = "무슨 동물인가요?"
+    text = "강아지가 몇 마리인가요?"
+
+    st = time.time()
+    result = vqa.predict(text, image)
+    et = time.time()
+    print(f"result ({et-st} sec): {result}")

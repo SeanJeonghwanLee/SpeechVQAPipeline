@@ -1,6 +1,6 @@
 from asr import ASRecognizer
-from beit3 import beit3_CLASS
-from tts import tts_CLASS
+from beit3 import VQAnswering
+# from tts import tts_CLASS
 import yaml
 import gradio as gr
 
@@ -19,8 +19,8 @@ class SVQA():
         
         # Model Initialization
         self.asr_pipe = ASRecognizer(asr_config)
-        self.beit3_pipe = beit3_CLASS(beit3_config) 
-        self.tts_pipe = tts_CLASS(tts_config)
+        self.beit3_pipe = VQAnswering(beit3_config) 
+        # self.tts_pipe = tts_CLASS(tts_config)
     
     def speech_recognition(self, sound):
         output = self.asr_pipe.predict(sound)
@@ -37,19 +37,19 @@ class SVQA():
     def run(self, sound, image):
         output = self.speech_recognition(sound)
         output = self.vq_answering(output, image)
-        output = self.ttspeech(output)
+        # output = self.ttspeech(output)
         return output
     
         
 if __name__ == "__main__":
     with open('config.yml', 'r') as f:
-        config = yaml.load(f)
+        config = yaml.full_load(f)
     
     vqa_engine = SVQA(config=config)
 
     demo = gr.Interface(vqa_engine.run,
-                        input = [gr.Audio(sources=["microphone"]),
+                        inputs = [gr.Audio(sources=["microphone"]),
                                  gr.Image(type="pil")],
-                        output="audio")
-    demo.launch()
+                        outputs = "text")
+    demo.launch(share=False)
         

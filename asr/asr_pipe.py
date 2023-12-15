@@ -1,7 +1,7 @@
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 from datasets import load_dataset, Audio
 import librosa
-import time
+
 
 
 class ASRecognizer():
@@ -37,7 +37,7 @@ class ASRecognizer():
 
 if __name__ == "__main__":
     import yaml
-
+    import time
 
     with open('../config.yml', 'r') as f:
         config = yaml.full_load(f)
