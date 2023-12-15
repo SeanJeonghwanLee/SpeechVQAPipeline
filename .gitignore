@@ -12,7 +12,7 @@ train_labels
 valid_labels
 tts/*
 *.json
-*.txt
+test_non_existing.txt
 beit3/log
 beit3/*.out
 __pycache__/
