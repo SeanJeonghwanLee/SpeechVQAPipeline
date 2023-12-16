@@ -10,7 +10,13 @@ models/beit3_base_indomain_patch16_224.zip
 models/beit3_large_indomain_patch16_224.zip
 train_labels
 valid_labels
-tts/*
+tts/__pycache__
+tts/configs
+tts/filelists
+tts/kss_second
+tts/monotonic_align
+tts/resources
+tts/text/__pycache__
 *.json
 test_non_existing.txt
 beit3/log
