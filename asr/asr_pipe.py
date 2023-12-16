@@ -16,8 +16,7 @@ class ASRecognizer():
 
     def predict(self, sound):
         if self.demo:
-            origin_sr, data = sound
-            data = np.asarray(data, dtype=np.float64) 
+            data, origin_sr = librosa.load(sound)
         else:
             data, origin_sr = sound
         
@@ -27,7 +26,7 @@ class ASRecognizer():
         input_features = self.processor(data, sampling_rate=16000, return_tensors="pt").input_features
         predicted_ids = self.model.generate(input_features, forced_decoder_ids = self.forced_decoder_ids)
         result = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)
-        print(f"#####result:{result}")
+
         return result
 
     def _down_sample(self, input_wav, origin_sr, resample_sr):

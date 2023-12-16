@@ -57,7 +57,6 @@ class VQAnswering():
 
 
     def predict(self, text, image):
-        answer = []
         # tokenization and transform
         language_tokens, padding_mask, _ = self._tokenize(text)
         image = self._transform(image)
@@ -66,11 +65,8 @@ class VQAnswering():
             image=image, question=language_tokens, 
             padding_mask=padding_mask)
         _, preds = logits.max(-1)
-        for pred in preds:
-            answer.append({
-                "answer": self.label2ans[pred.item()], 
-            })
-        
+        answer = self.label2ans[preds[0].item()]
+                
         return answer
 
 

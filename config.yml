@@ -18,4 +18,5 @@ beit3 :
   ans2label : ./answer2label.txt
 tts:
   demo : True  
-  tts_path: path
+  tts_path : ./tts/kss_second/G_98000.pth
+  kss_path : ./tts/configs/kss.json
