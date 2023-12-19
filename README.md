@@ -4,6 +4,6 @@
 
 
 <br>
-(TBD) checkpoints are going to be uploaded on huggingface <
+(TBD) checkpoints are going to be uploaded on huggingface
 
 (TBD) specific comments about customized codes
