@@ -24,3 +24,4 @@ beit3/*.out
 __pycache__/
 beit3/finetune_checkpoint_large_indomain/
 beit3/finetune_checkpoint
+*.out
