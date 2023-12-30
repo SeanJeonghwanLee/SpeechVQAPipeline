@@ -1,9 +1,7 @@
-## School deep learning project ##
-### - Korean Speech VQA Pipeline : ASR -> VQA -> TTS ###
-### - Korean Finetuned VQA (BEiT-3) ###
+# Korean Speech VQA Pipeline : ASR -> VQA -> TTS #
 
-
-<br>
-(TBD) checkpoints are going to be uploaded on huggingface
-
-(TBD) specific comments about customized codes
+## Basic information ##
+### Model ###
+  - ASR : whisper small finetuned in Korean (https://huggingface.co/jiwon65/whisper-small_korean-zeroth)
+  - VQA : KoBEiT3 (https://github.com/SeanJeonghwanLee/KoBEiT3)
+  - TTS : VITS (TBD)

@@ -23,4 +23,4 @@ python -m torch.distributed.launch --nproc_per_node=4 run_beit3_finetuning.py \
         --task_head_lr_weight 20 \
         --opt_betas 0.9 0.98 \
         --checkpoint_activations \
-        --resume /home/seanlee/class/SpeechVQAPipeline/beit3/finetune_checkpoint_large_indomain/checkpoint-1.pth
+        --resume /home/seanlee/class/SpeechVQAPipeline/beit3/finetune_checkpoint_large_indomain/checkpoint-6.pth
